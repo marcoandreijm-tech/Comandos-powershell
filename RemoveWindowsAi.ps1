@@ -4435,5 +4435,7 @@ if (!$nonInteractive) {
     $Host.UI.RawUI.ReadKey() *>$null
 }
 
+Disable-ScheduledTask -TaskPath "\Microsoft\Windows\Maintenance\" -TaskName "WinSAT"
+
 exit
 
