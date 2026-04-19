@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>CEJAMA - Gerar DOC</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.5/pizzip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.0/docxtemplater.js"></script>
+
+<style>
+body {
+    background:#121212;
+    color:white;
+    text-align:center;
+    font-family:Arial;
+}
+button {
+    padding:12px;
+    background:#00c853;
+    border:none;
+    color:white;
+    cursor:pointer;
+}
+input {
+    margin:10px;
+    padding:10px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>CEJAMA - GERAR TERMO AUTOMÁTICO</h2>
+
+<input type="file" id="csv"><br>
+<input type="file" id="docx"><br>
+
+<button onclick="gerar()">GERAR DOC</button>
+
+<script>
+function limparTexto(texto) {
+    return texto
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9 ]/g, "")
+        .trim()
+        .replace(/\s+/g, "_")
+        .toUpperCase();
+}
+
+async function gerar() {
+
+    const csvFile = document.getElementById("csv").files[0];
+    const docxFile = document.getElementById("docx").files[0];
+
+    if (!csvFile || !docxFile) {
+        alert("Selecione os arquivos!");
+        return;
+    }
+
+    const texto = await csvFile.text();
+    let linhas = texto.split("\n").filter(l => l.trim() !== "");
+    let sep = linhas[0].includes(";") ? ";" : ",";
+
+    let cab = linhas[0].split(sep);
+    let val = linhas[1].split(sep); // PRIMEIRA LINHA AUTOMÁTICA
+
+    let dados = {};
+    cab.forEach((c,i)=> dados[c.trim()] = val[i]?.trim());
+
+    const buffer = await docxFile.arrayBuffer();
+
+    let zip = new PizZip(buffer);
+    let doc = new window.docxtemplater(zip);
+
+    doc.setData({
+        Nome: dados["Nome"],
+        Inscricao: dados["Inscrição"] || dados["Inscricao"],
+        EndCompleto: dados["EndCompleto"],
+        Bairro: dados["Bairro"],
+        Id: dados["Id"],
+        DataHoje: new Date().toLocaleDateString("pt-BR")
+    });
+
+    doc.render();
+
+    let blob = doc.getZip().generate({type:"blob"});
+
+    let nome = limparTexto(dados["Nome"] || "CLIENTE");
+    let id = (dados["Id"] || "000001").toString().padStart(6,"0");
+
+    let fileName = `TERMO_APAE_${id}_${nome}.docx`;
+
+    // DOWNLOAD AUTOMÁTICO (sem FileSaver)
+    let a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+</script>
+
+</body>
+</html>
