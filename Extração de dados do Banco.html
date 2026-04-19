@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Leitor RET - Dark</title>
+
+<style>
+body {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: Arial;
+    text-align: center;
+    padding: 20px;
+}
+
+.container {
+    max-width: 700px;
+    margin: auto;
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px #000;
+}
+
+h1 {
+    color: #38bdf8;
+}
+
+input, button {
+    padding: 10px;
+    margin: 10px;
+    border-radius: 5px;
+    border: none;
+}
+
+button {
+    background: #38bdf8;
+    color: #000;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #0ea5e9;
+}
+
+.result {
+    margin-top: 20px;
+    text-align: left;
+    background: #020617;
+    padding: 15px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+/* 🔥 CORES SEPARADAS */
+.label {
+    color: #38bdf8; /* azul */
+}
+
+.value {
+    color: #ef4444; /* vermelho */
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>📄 Leitor de Arquivo RET</h1>
+
+    <input type="file" id="fileInput" accept=".ret"><br>
+    <input type="number" id="linhaInput" placeholder="Digite a linha"><br>
+
+    <button onclick="processar()">Processar</button>
+
+    <div class="result" id="resultado"></div>
+</div>
+
+<script>
+function formatarValor(valor) {
+    let numero = parseInt(valor) / 100;
+    return numero.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+}
+
+function formatarData(data) {
+    return data.substring(0,2) + "/" + data.substring(2,4) + "/" + data.substring(4,6);
+}
+
+function copiarTexto(texto) {
+    navigator.clipboard.writeText(texto);
+}
+
+function processar() {
+    const file = document.getElementById('fileInput').files[0];
+    const linhaNumero = parseInt(document.getElementById('linhaInput').value);
+
+    if (!file || !linhaNumero) {
+        alert("Selecione o arquivo e digite a linha!");
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        const linhas = e.target.result.split(/\r?\n/);
+
+        if (linhaNumero > linhas.length) {
+            alert("Linha não existe!");
+            return;
+        }
+
+        const linha = linhas[linhaNumero - 1];
+
+        const cpfCnpj = linha.substring(345, 356).trim();
+        const valor = linha.substring(259, 266).trim();
+        const nossoComDv = linha.substring(66, 74).trim();
+        const dataPagto = linha.substring(110, 116).trim();
+        const nossoSemDv = linha.substring(119, 127).trim();
+
+        const valorFormatado = formatarValor(valor);
+        const dataFormatada = formatarData(dataPagto);
+
+        copiarTexto(cpfCnpj);
+
+        document.getElementById('resultado').innerHTML = `
+            <span class="label">CPF/CNPJ:</span> <span class="value">${cpfCnpj}</span> (copiado ✔)<br><br>
+            <span class="label">Valor:</span> <span class="value">${valorFormatado}</span><br><br>
+            <span class="label">Nosso número com DV:</span> <span class="value">${nossoComDv}</span><br><br>
+            <span class="label">Data de pagto:</span> <span class="value">${dataFormatada}</span><br><br>
+            <span class="label">Nosso número sem DV:</span> <span class="value">${nossoSemDv}</span>
+        `;
+    };
+
+    reader.readAsText(file);
+}
+</script>
+
+</body>
+</html>
