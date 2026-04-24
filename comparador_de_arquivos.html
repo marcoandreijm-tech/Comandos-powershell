@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comparador de Arquivos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+<div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl">
+  <h1 class="text-2xl font-bold mb-4 text-center">Comparador de Arquivos</h1>
+
+  <div class="mb-4">
+    <label class="block font-semibold mb-2">Arquivo 1</label>
+    <input type="file" id="file1" class="w-full border p-2 rounded">
+  </div>
+
+  <div class="mb-4">
+    <label class="block font-semibold mb-2">Arquivo 2</label>
+    <input type="file" id="file2" class="w-full border p-2 rounded">
+  </div>
+
+  <button onclick="compareFiles()" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
+    Comparar
+  </button>
+
+  <div class="mt-6">
+    <h2 class="text-xl font-semibold mb-2">Diferenças</h2>
+    <pre id="output" class="bg-gray-200 p-4 rounded h-60 overflow-auto"></pre>
+  </div>
+</div>
+
+<script>
+function readFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(/\r?\n/));
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+async function compareFiles() {
+  const file1 = document.getElementById('file1').files[0];
+  const file2 = document.getElementById('file2').files[0];
+
+  if (!file1 || !file2) {
+    alert('Selecione os dois arquivos');
+    return;
+  }
+
+  const data1 = await readFile(file1);
+  const data2 = await readFile(file2);
+
+  const set1 = new Set(data1);
+  const set2 = new Set(data2);
+
+  const onlyIn1 = data1.filter(x => !set2.has(x));
+  const onlyIn2 = data2.filter(x => !set1.has(x));
+
+  let result = '';
+
+  result += '--- Apenas no Arquivo 1 ---\n';
+  result += onlyIn1.join('\n') + '\n\n';
+
+  result += '--- Apenas no Arquivo 2 ---\n';
+  result += onlyIn2.join('\n');
+
+  document.getElementById('output').textContent = result;
+}
+</script>
+
+</body>
+</html>
