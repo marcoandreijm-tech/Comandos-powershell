@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Simulador CEJAMA</title>
+
+<style>
+body {
+    font-family: Arial;
+    background: #dcdcdc;
+    padding: 20px;
+}
+
+.container {
+    background: #fff;
+    padding: 20px;
+    border-radius: 6px;
+    max-width: 1000px;
+    margin: auto;
+}
+
+input, select, button {
+    padding: 8px;
+    margin: 5px;
+}
+
+button {
+    background: #0078d7;
+    color: white;
+    border: none;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th, td {
+    border: 1px solid #bbb;
+    padding: 6px;
+    text-align: center;
+}
+
+th {
+    background: #eee;
+}
+
+.highlight {
+    background: #ffff99;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Simulador CEJAMA</h2>
+
+<input type="number" id="kwh" placeholder="Consumo kWh">
+
+<select id="classe">
+    <option value="B1">B1 Residencial</option>
+    <option value="B2">B2 Rural</option>
+    <option value="B3">B3 Comercial</option>
+    <option value="B4">B4a Iluminação</option>
+</select>
+
+<select id="cosip">
+    <option value="sim">COSIP: Sim</option>
+    <option value="nao">COSIP: Não</option>
+</select>
+
+<button onclick="calcular()">Calcular</button>
+
+<div id="info"></div>
+
+<table id="tabela" style="display:none;">
+<thead>
+<tr>
+<th>Descrição</th>
+<th>kWh</th>
+<th>Tarifa</th>
+<th>Energia</th>
+<th>Base ICMS</th>
+<th>ICMS %</th>
+<th>ICMS</th>
+</tr>
+</thead>
+
+<tbody id="corpo"></tbody>
+
+<tfoot>
+<tr class="highlight">
+<td colspan="3">Energia</td>
+<td id="energia"></td>
+<td></td>
+<td></td>
+<td id="icmsTotal"></td>
+</tr>
+
+<tr>
+<td colspan="3">COSIP</td>
+<td id="cosipValor"></td>
+<td colspan="3"></td>
+</tr>
+
+<tr class="highlight">
+<td colspan="3">TOTAL</td>
+<td id="total"></td>
+<td colspan="3"></td>
+</tr>
+</tfoot>
+</table>
+
+</div>
+
+<script>
+
+const tarifas = {
+    B1: 0.79054,
+    B2: 0.79054,
+    B3: 0.79054,
+    B4: 0.43480
+};
+
+function calcular() {
+
+    let kwh = parseFloat(document.getElementById("kwh").value);
+    let classe = document.getElementById("classe").value;
+    let usarCosip = document.getElementById("cosip").value;
+
+    if (isNaN(kwh) || kwh <= 0) {
+        alert("Valor inválido");
+        return;
+    }
+
+    let kwhOriginal = kwh;
+
+    if (kwh < 30) kwh = 30;
+
+    let tarifa = tarifas[classe];
+
+    let totalEnergia = 0;
+    let totalICMS = 0;
+
+    let corpo = document.getElementById("corpo");
+    corpo.innerHTML = "";
+
+    function linha(desc, qtd, icmsPerc) {
+
+        let energia = qtd * tarifa;
+        let base = energia / (1 - icmsPerc);
+        let icms = base * icmsPerc;
+
+        totalEnergia += energia;
+        totalICMS += icms;
+
+        return `
+        <tr>
+            <td>${desc}</td>
+            <td>${qtd}</td>
+            <td>${tarifa.toFixed(5)}</td>
+            <td class="highlight">${energia.toFixed(2)}</td>
+            <td>${base.toFixed(2)}</td>
+            <td>${(icmsPerc*100)}%</td>
+            <td class="highlight">${icms.toFixed(2)}</td>
+        </tr>`;
+    }
+
+    // INFO
+    let info = `Classe: ${classe} | Consumo: ${kwhOriginal} kWh`;
+    if (kwhOriginal < 30) info += " → mínimo aplicado (30 kWh)";
+    document.getElementById("info").innerText = info;
+
+    // 🔥 REGRAS POR CLASSE
+
+    if (classe === "B1") {
+        // 150 kWh
+        if (kwh > 150) {
+            corpo.innerHTML += linha("Até 150 kWh", 150, 0.12);
+            corpo.innerHTML += linha("Acima 150 kWh", kwh - 150, 0.17);
+        } else {
+            corpo.innerHTML += linha("Consumo", kwh, 0.12);
+        }
+
+    } else if (classe === "B2") {
+        // 🔥 NOVA REGRA 500 kWh
+        if (kwh > 500) {
+            corpo.innerHTML += linha("Até 500 kWh", 500, 0.12);
+            corpo.innerHTML += linha("Acima 500 kWh", kwh - 500, 0.17);
+        } else {
+            corpo.innerHTML += linha("Consumo", kwh, 0.12);
+        }
+
+    } else {
+        // B3 / B4 → 17%
+        corpo.innerHTML += linha("Consumo", kwh, 0.17);
+    }
+
+    // COSIP
+    let cosip = 0;
+    if (usarCosip === "sim") {
+        cosip = (totalEnergia + totalICMS) * 0.065;
+    }
+
+    let totalFinal = totalEnergia + totalICMS + cosip;
+
+    document.getElementById("energia").innerText = totalEnergia.toFixed(2);
+    document.getElementById("icmsTotal").innerText = totalICMS.toFixed(2);
+    document.getElementById("cosipValor").innerText = cosip.toFixed(2);
+    document.getElementById("total").innerText = totalFinal.toFixed(2);
+
+    document.getElementById("tabela").style.display = "table";
+}
+
+</script>
+
+</body>
+</html>
