@@ -68,6 +68,12 @@ th {
     <option value="B4">B4a Iluminação</option>
 </select>
 
+<select id="ligacao">
+    <option value="30">Monofásico (mínimo 30 kWh)</option>
+    <option value="50">Bifásico (mínimo 50 kWh)</option>
+    <option value="100">Trifásico (mínimo 100 kWh)</option>
+</select>
+
 <select id="cosip">
     <option value="sim">COSIP: Sim</option>
     <option value="nao">COSIP: Não</option>
@@ -130,6 +136,7 @@ function calcular() {
 
     let kwh = parseFloat(document.getElementById("kwh").value);
     let classe = document.getElementById("classe").value;
+    let minimo = parseInt(document.getElementById("ligacao").value);
     let usarCosip = document.getElementById("cosip").value;
 
     if (isNaN(kwh) || kwh <= 0) {
@@ -139,7 +146,8 @@ function calcular() {
 
     let kwhOriginal = kwh;
 
-    if (kwh < 30) kwh = 30;
+    // 🔥 APLICA MÍNIMO POR LIGAÇÃO
+    if (kwh < minimo) kwh = minimo;
 
     let tarifa = tarifas[classe];
 
@@ -172,13 +180,14 @@ function calcular() {
 
     // INFO
     let info = `Classe: ${classe} | Consumo: ${kwhOriginal} kWh`;
-    if (kwhOriginal < 30) info += " → mínimo aplicado (30 kWh)";
+    if (kwhOriginal < minimo) {
+        info += ` → mínimo aplicado (${minimo} kWh)`;
+    }
     document.getElementById("info").innerText = info;
 
-    // 🔥 REGRAS POR CLASSE
-
+    // REGRAS
     if (classe === "B1") {
-        // 150 kWh
+
         if (kwh > 150) {
             corpo.innerHTML += linha("Até 150 kWh", 150, 0.12);
             corpo.innerHTML += linha("Acima 150 kWh", kwh - 150, 0.17);
@@ -187,7 +196,7 @@ function calcular() {
         }
 
     } else if (classe === "B2") {
-        // 🔥 NOVA REGRA 500 kWh
+
         if (kwh > 500) {
             corpo.innerHTML += linha("Até 500 kWh", 500, 0.12);
             corpo.innerHTML += linha("Acima 500 kWh", kwh - 500, 0.17);
@@ -196,7 +205,6 @@ function calcular() {
         }
 
     } else {
-        // B3 / B4 → 17%
         corpo.innerHTML += linha("Consumo", kwh, 0.17);
     }
 
