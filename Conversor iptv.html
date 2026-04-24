@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Conversor de URL</title>
+<style>
+    body {
+        font-family: Arial;
+        background: #111;
+        color: #fff;
+        padding: 20px;
+    }
+    input, button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 10px;
+    }
+    button {
+        background: #28a745;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+    .resultado {
+        margin-top: 20px;
+        color: yellow;
+        word-break: break-all;
+    }
+</style>
+</head>
+<body>
+
+<h2>Conversor de URL</h2>
+
+<input type="text" id="urlInput" placeholder="Cole a URL aqui">
+<button onclick="converter()">Converter</button>
+
+<div class="resultado" id="resultado"></div>
+
+<script>
+function converter() {
+    let url = document.getElementById("urlInput").value;
+
+    // Remove http:// e separa partes
+    let semHttp = url.replace("http://", "").replace("https://", "");
+    
+    let partes = semHttp.split("/");
+
+    let host = partes[0];
+    let username = partes[1];
+    let password = partes[2];
+
+    let novaUrl = `http://${host}/get.php?username=${username}&password=${password}&type=m3u_plus`;
+
+    document.getElementById("resultado").innerText = novaUrl;
+}
+</script>
+
+</body>
+</html>
