@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Buscar Livros PDF</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      text-align: center;
+      background: #1e293b;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    input {
+      padding: 12px;
+      width: 300px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #6366f1;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #4f46e5;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Buscar Livro em PDF</h1>
+    <input type="text" id="livro" placeholder="Digite o nome do livro...">
+    <br>
+    <button onclick="buscar()">Pesquisar</button>
+  </div>
+
+  <script>
+    function buscar() {
+      let termo = document.getElementById("livro").value.trim();
+
+      if (termo === "") {
+        alert("Digite o nome do livro!");
+        return;
+      }
+
+      // Monta a busca estilo dork
+      let query = `filetype:pdf "livros" ${termo} download`;
+
+      // Redireciona para o Yahoo
+      let url = `https://search.yahoo.com/search?p=${encodeURIComponent(query)}`;
+
+      window.location.href = url;
+    }
+  </script>
+
+</body>
+</html>
