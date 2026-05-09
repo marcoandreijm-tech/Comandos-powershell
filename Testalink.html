@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>IPTV Player 4K Ultimate</title>
+
+<!-- HLS -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+<!-- MPEGTS -->
+<script src="https://cdn.jsdelivr.net/npm/mpegts.js@latest"></script>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
+}
+
+body{
+    background:#0f0f0f;
+    color:white;
+    height:100vh;
+    display:flex;
+    overflow:hidden;
+}
+
+/* ========================= */
+/* SIDEBAR */
+/* ========================= */
+
+.sidebar{
+    width:380px;
+    background:#181818;
+    border-right:2px solid #2d2d2d;
+    overflow-y:auto;
+    padding:15px;
+}
+
+.sidebar h2{
+    margin-bottom:15px;
+    font-size:24px;
+}
+
+input[type=file],
+input[type=text],
+button{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+    margin-bottom:10px;
+    font-size:14px;
+}
+
+input[type=file],
+input[type=text]{
+    background:#252525;
+    color:white;
+}
+
+button{
+    background:#00aa55;
+    color:white;
+    cursor:pointer;
+    font-weight:bold;
+    transition:0.2s;
+}
+
+button:hover{
+    background:#00cc66;
+}
+
+.status{
+    margin-top:10px;
+    margin-bottom:15px;
+    color:#00ff99;
+    font-size:14px;
+}
+
+/* ========================= */
+/* GRUPOS */
+/* ========================= */
+
+.group{
+    margin-bottom:10px;
+}
+
+.group-title{
+    background:#2c2c2c;
+    padding:10px;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:bold;
+    user-select:none;
+    transition:0.2s;
+}
+
+.group-title:hover{
+    background:#3c3c3c;
+}
+
+.channels-container{
+    display:none;
+    margin-top:5px;
+}
+
+.channel{
+    background:#202020;
+    padding:8px;
+    margin-top:4px;
+    border-radius:5px;
+    cursor:pointer;
+    transition:0.2s;
+}
+
+.channel:hover{
+    background:#444;
+}
+
+/* ========================= */
+/* PLAYER */
+/* ========================= */
+
+.content{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+}
+
+.topbar{
+    background:#181818;
+    border-bottom:2px solid #2d2d2d;
+    padding:12px;
+}
+
+.player{
+    flex:1;
+    background:black;
+    position:relative;
+}
+
+video{
+    width:100%;
+    height:100%;
+    background:black;
+}
+
+/* ========================= */
+/* DEBUG */
+/* ========================= */
+
+#debug{
+    position:absolute;
+    bottom:10px;
+    left:10px;
+    background:rgba(0,0,0,0.7);
+    color:#00ff99;
+    padding:10px;
+    border-radius:6px;
+    font-size:12px;
+    max-width:500px;
+}
+
+/* ========================= */
+/* SCROLL */
+/* ========================= */
+
+::-webkit-scrollbar{
+    width:8px;
+}
+
+::-webkit-scrollbar-thumb{
+    background:#555;
+    border-radius:10px;
+}
+
+</style>
+
+</head>
+<body>
+
+<!-- ========================= -->
+<!-- SIDEBAR -->
+<!-- ========================= -->
+
+<div class="sidebar">
+
+    <h2>📺 IPTV Player 4K</h2>
+
+    <!-- IMPORTAR ARQUIVO -->
+    <input type="file"
+           id="m3uFile"
+           accept=".m3u,.m3u8">
+
+    <!-- IMPORTAR LINK -->
+    <input type="text"
+           id="m3uUrl"
+           placeholder="Cole aqui o link M3U">
+
+    <button id="loadUrlBtn">
+        Carregar Lista IPTV
+    </button>
+
+    <!-- PESQUISA -->
+    <input type="text"
+           id="searchInput"
+           placeholder="Pesquisar canal ou grupo">
+
+    <div class="status" id="status">
+        Nenhuma lista carregada
+    </div>
+
+    <div id="groups"></div>
+
+</div>
+
+<!-- ========================= -->
+<!-- PLAYER -->
+<!-- ========================= -->
+
+<div class="content">
+
+    <div class="topbar">
+
+        <h3 id="channelName">
+            Nenhum canal selecionado
+        </h3>
+
+    </div>
+
+    <div class="player">
+
+        <video
+            id="videoPlayer"
+            controls
+            autoplay
+            playsinline
+            preload="auto">
+        </video>
+
+        <div id="debug">
+            Sistema pronto
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+/* ========================= */
+/* ELEMENTOS */
+/* ========================= */
+
+const fileInput =
+    document.getElementById("m3uFile");
+
+const m3uUrl =
+    document.getElementById("m3uUrl");
+
+const loadUrlBtn =
+    document.getElementById("loadUrlBtn");
+
+const searchInput =
+    document.getElementById("searchInput");
+
+const groupsDiv =
+    document.getElementById("groups");
+
+const video =
+    document.getElementById("videoPlayer");
+
+const channelName =
+    document.getElementById("channelName");
+
+const statusText =
+    document.getElementById("status");
+
+const debug =
+    document.getElementById("debug");
+
+let allChannels = [];
+
+let currentPlayer = null;
+
+/* ========================= */
+/* DEBUG */
+/* ========================= */
+
+function log(message){
+
+    console.log(message);
+
+    debug.innerHTML = message;
+
+}
+
+/* ========================= */
+/* IMPORTAR ARQUIVO */
+/* ========================= */
+
+fileInput.addEventListener("change", function(e){
+
+    const file = e.target.files[0];
+
+    if(!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function(event){
+
+        parseM3U(event.target.result);
+
+    };
+
+    reader.readAsText(file);
+
+});
+
+/* ========================= */
+/* IMPORTAR LINK */
+/* ========================= */
+
+loadUrlBtn.addEventListener("click", async function(){
+
+    const url = m3uUrl.value.trim();
+
+    if(url === ""){
+
+        alert("Digite um link M3U");
+
+        return;
+
+    }
+
+    try{
+
+        statusText.innerHTML =
+            "Carregando lista IPTV...";
+
+        const response =
+            await fetch(url);
+
+        const text =
+            await response.text();
+
+        parseM3U(text);
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        statusText.innerHTML =
+            "Erro ao carregar lista IPTV";
+
+    }
+
+});
+
+/* ========================= */
+/* PESQUISA */
+/* ========================= */
+
+searchInput.addEventListener("input", function(){
+
+    const search =
+        this.value.toLowerCase();
+
+    if(search === ""){
+
+        renderGroups(allChannels);
+
+        return;
+
+    }
+
+    const filtered =
+        allChannels.filter(channel =>
+
+            channel.name
+            .toLowerCase()
+            .includes(search)
+
+            ||
+
+            channel.group
+            .toLowerCase()
+            .includes(search)
+
+        );
+
+    renderGroups(filtered);
+
+});
+
+/* ========================= */
+/* PROCESSAR M3U */
+/* ========================= */
+
+function parseM3U(content){
+
+    const lines = content.split("\n");
+
+    let channels = [];
+
+    let current = {};
+
+    for(let i = 0; i < lines.length; i++){
+
+        const line = lines[i].trim();
+
+        if(line.startsWith("#EXTINF")){
+
+            const nameMatch =
+                line.match(/,(.*)$/);
+
+            const groupMatch =
+                line.match(/group-title="(.*?)"/);
+
+            current = {
+
+                name:
+                    nameMatch ?
+                    nameMatch[1] :
+                    "Sem nome",
+
+                group:
+                    groupMatch ?
+                    groupMatch[1] :
+                    "Outros"
+
+            };
+
+        }
+        else if(line.startsWith("http")){
+
+            current.url = line;
+
+            channels.push(current);
+
+        }
+
+    }
+
+    allChannels = channels;
+
+    renderGroups(channels);
+
+    statusText.innerHTML =
+        "Lista carregada com sucesso! " +
+        channels.length +
+        " canais encontrados.";
+
+}
+
+/* ========================= */
+/* RENDERIZAR GRUPOS */
+/* ========================= */
+
+function renderGroups(channels){
+
+    groupsDiv.innerHTML = "";
+
+    const grouped = {};
+
+    channels.forEach(channel => {
+
+        if(!grouped[channel.group]){
+
+            grouped[channel.group] = [];
+
+        }
+
+        grouped[channel.group].push(channel);
+
+    });
+
+    Object.keys(grouped)
+    .sort()
+    .forEach(groupName => {
+
+        const groupDiv =
+            document.createElement("div");
+
+        groupDiv.className = "group";
+
+        const title =
+            document.createElement("div");
+
+        title.className =
+            "group-title";
+
+        title.textContent =
+            "▶ " + groupName;
+
+        const channelsContainer =
+            document.createElement("div");
+
+        channelsContainer.className =
+            "channels-container";
+
+        grouped[groupName]
+        .forEach(channel => {
+
+            const channelDiv =
+                document.createElement("div");
+
+            channelDiv.className =
+                "channel";
+
+            channelDiv.textContent =
+                channel.name;
+
+            channelDiv.onclick = () => {
+
+                playChannel(channel);
+
+            };
+
+            channelsContainer
+            .appendChild(channelDiv);
+
+        });
+
+        title.onclick = () => {
+
+            if(
+
+                channelsContainer
+                .style.display === "none"
+
+            ){
+
+                channelsContainer
+                .style.display = "block";
+
+                title.textContent =
+                    "▼ " + groupName;
+
+            }
+            else{
+
+                channelsContainer
+                .style.display = "none";
+
+                title.textContent =
+                    "▶ " + groupName;
+
+            }
+
+        };
+
+        groupDiv.appendChild(title);
+
+        groupDiv.appendChild(
+            channelsContainer
+        );
+
+        groupsDiv.appendChild(groupDiv);
+
+    });
+
+}
+
+/* ========================= */
+/* DESTRUIR PLAYERS */
+/* ========================= */
+
+function destroyPlayers(){
+
+    try{
+
+        if(currentPlayer){
+
+            currentPlayer.destroy();
+
+            currentPlayer = null;
+
+        }
+
+    }catch(e){}
+
+    video.pause();
+
+    video.removeAttribute("src");
+
+    video.load();
+
+}
+
+/* ========================= */
+/* PLAYER 4K */
+/* ========================= */
+
+async function playChannel(channel){
+
+    destroyPlayers();
+
+    const url = channel.url;
+
+    channelName.textContent =
+        channel.name;
+
+    log("Abrindo: " + url);
+
+    video.autoplay = true;
+    video.controls = true;
+    video.muted = false;
+    video.playsInline = true;
+    video.preload = "auto";
+
+    /* ========================= */
+    /* HLS (.m3u8) */
+    /* ========================= */
+
+    if(url.includes(".m3u8")){
+
+        log("Detectado HLS 4K");
+
+        if(Hls.isSupported()){
+
+            currentPlayer = new Hls({
+
+                enableWorker: true,
+
+                lowLatencyMode: false,
+
+                backBufferLength: 90,
+
+                maxBufferLength: 120,
+
+                maxMaxBufferLength: 180,
+
+                liveSyncDurationCount: 3,
+
+                capLevelToPlayerSize: false,
+
+                startLevel: -1,
+
+                autoStartLoad: true
+
+            });
+
+            currentPlayer.loadSource(url);
+
+            currentPlayer.attachMedia(video);
+
+            currentPlayer.on(
+
+                Hls.Events.MANIFEST_PARSED,
+
+                async function(){
+
+                    try{
+
+                        await video.play();
+
+                        log(
+                            "Canal 4K HLS carregado"
+                        );
+
+                    }catch(e){
+
+                        log(
+                            "Erro autoplay HLS"
+                        );
+
+                    }
+
+                }
+
+            );
+
+            currentPlayer.on(
+
+                Hls.Events.ERROR,
+
+                function(event, data){
+
+                    console.error(data);
+
+                    log(
+                        "Erro HLS: " +
+                        data.details
+                    );
+
+                }
+
+            );
+
+        }
+        else{
+
+            video.src = url;
+
+            video.play();
+
+        }
+
+    }
+
+    /* ========================= */
+    /* MPEGTS (.ts) */
+    /* ========================= */
+
+    else if(url.includes(".ts")){
+
+        log("Detectado MPEGTS 4K");
+
+        if(mpegts.isSupported()){
+
+            try{
+
+                currentPlayer =
+                    mpegts.createPlayer({
+
+                    type: "mpegts",
+
+                    url: url,
+
+                    isLive: true,
+
+                    enableWorker: true,
+
+                    hasAudio: true,
+
+                    hasVideo: true,
+
+                    lazyLoad: false,
+
+                    liveBufferLatencyChasing: true,
+
+                    liveBufferLatencyMaxLatency: 5,
+
+                    liveBufferLatencyMinRemain: 1
+
+                });
+
+                currentPlayer.attachMediaElement(video);
+
+                currentPlayer.load();
+
+                await currentPlayer.play();
+
+                log(
+                    "Canal 4K TS carregado"
+                );
+
+            }
+            catch(error){
+
+                console.error(error);
+
+                log(
+                    "Erro MPEGTS: " +
+                    error.message
+                );
+
+            }
+
+        }
+        else{
+
+            log(
+                "Navegador não suporta MPEGTS"
+            );
+
+        }
+
+    }
+
+    /* ========================= */
+    /* OUTROS FORMATOS */
+    /* ========================= */
+
+    else{
+
+        video.src = url;
+
+        try{
+
+            await video.play();
+
+            log("Canal carregado");
+
+        }
+        catch(e){
+
+            log(
+                "Erro ao reproduzir canal"
+            );
+
+        }
+
+    }
+
+}
+
+/* ========================= */
+/* LOGS MPEGTS */
+/* ========================= */
+
+mpegts.LoggingControl.enableVerbose = true;
+
+</script>
+
+</body>
+</html>
