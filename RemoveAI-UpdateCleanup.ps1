@@ -412,3 +412,6 @@ foreach ($choice in $aipackages) {
         }
     }
 }
+
+Stop-Service wuauserv,bits,DoSvc -Force -ErrorAction SilentlyContinue; sc.exe config wuauserv start= disabled; sc.exe config bits start= disabled; sc.exe config DoSvc start= disabled
+Get-Service wuauserv,bits,DoSvc
