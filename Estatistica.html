@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise de Dados - Arquivo XLS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#36CFC9',
+                        neutral: '#1D2129',
+                        light: '#F2F3F5',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Cabeçalho -->
+        <header class="mb-10 text-center">
+            <h1 class="text-[clamp(1.8rem,3vw,2.8rem)] font-bold text-primary mb-3">Analise de Dados - Arquivo XLS / XLSX</h1>
+            <p class="text-gray-600 max-w-2xl mx-auto">Importe seu arquivo .xls ou .xlsx para obter automaticamente todas as estatísticas solicitadas</p>
+        </header>
+
+        <!-- Área de Importação -->
+        <section class="bg-white rounded-xl shadow-md p-6 mb-8 transition-all hover:shadow-lg">
+            <div class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-8 hover:border-primary transition-colors">
+                <label for="fileUpload" class="w-full cursor-pointer">
+                    <div class="flex flex-col items-center gap-4">
+                        <i class="fa fa-file-excel-o text-5xl text-secondary"></i>
+                        <span class="text-lg font-medium text-gray-700">Clique para selecionar ou arraste o arquivo aqui</span>
+                        <span class="text-sm text-gray-500">Suporta arquivos .xls e .xlsx</span>
+                        <input type="file" id="fileUpload" accept=".xls,.xlsx" class="hidden">
+                        <button class="mt-2 bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                            Selecionar Arquivo
+                        </button>
+                    </div>
+                </label>
+            </div>
+            <div id="fileInfo" class="mt-4 text-center text-gray-600 hidden">
+                <i class="fa fa-check-circle text-green-500 mr-2"></i>
+                <span id="fileName"></span>
+            </div>
+        </section>
+
+        <!-- Resultados -->
+        <section id="results" class="hidden space-y-6">
+            <h2 class="text-2xl font-bold text-neutral mb-4">Resultados da Analise</h2>
+            
+            <!-- Contadores Gerais -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="bg-white rounded-xl shadow p-5 border-l-4 border-primary">
+                    <h3 class="text-gray-600 text-sm font-medium mb-1">Quantidade de UC Ligada</h3>
+                    <p id="qtdUCLigado" class="text-3xl font-bold text-neutral">-</p>
+                </div>
+                <div class="bg-white rounded-xl shadow p-5 border-l-4 border-primary">
+                    <h3 class="text-gray-600 text-sm font-medium mb-1">Quantidade de Sócios</h3>
+                    <p id="qtdAssociados" class="text-3xl font-bold text-neutral">-</p>
+                </div>
+                <div class="bg-white rounded-xl shadow p-5 border-l-4 border-primary">
+                    <h3 class="text-gray-600 text-sm font-medium mb-1">Total em Micro Geração</h3>
+                    <p id="qtdMicroGeracaoTotal" class="text-3xl font-bold text-neutral">-</p>
+                </div>
+                <div class="bg-white rounded-xl shadow p-5 border-l-4 border-primary">
+                    <h3 class="text-gray-600 text-sm font-medium mb-1">Micro Geração com Ligado = 'S'</h3>
+                    <p id="qtdMicroGeracaoLigadoS" class="text-3xl font-bold text-neutral">-</p>
+                </div>
+            </div>
+
+            <!-- Distribuição por Sexo -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h3 class="text-lg font-semibold text-neutral mb-4">Associados por Sexo</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-light rounded-lg p-4 text-center">
+                        <p class="text-gray-600 mb-1">Masculino (M)</p>
+                        <p id="sexoM" class="text-2xl font-bold text-blue-600">-</p>
+                    </div>
+                    <div class="bg-light rounded-lg p-4 text-center">
+                        <p class="text-gray-600 mb-1">Feminino (F)</p>
+                        <p id="sexoF" class="text-2xl font-bold text-pink-600">-</p>
+                    </div>
+                    <div class="bg-light rounded-lg p-4 text-center">
+                        <p class="text-gray-600 mb-1">Outros (O)</p>
+                        <p id="sexoO" class="text-2xl font-bold text-purple-600">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- USA MDM -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h3 class="text-lg font-semibold text-neutral mb-4">USA MDM</h3>
+                <div id="usaMdmList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <!-- Itens inseridos via JS -->
+                </div>
+            </div>
+
+            <!-- ID Tarifa -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h3 class="text-lg font-semibold text-neutral mb-4">TARIFA - Ligado)</h3>
+                <div id="idTarifaList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <!-- Itens inseridos via JS -->
+                </div>
+            </div>
+
+            <!-- Fase -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h3 class="text-lg font-semibold text-neutral mb-4">FASE Ligado</h3>
+                <div id="faseList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <!-- Itens inseridos via JS -->
+                </div>
+            </div>
+
+            <!-- Cadastros por Ano (últimos 10 anos) -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <h3 class="text-lg font-semibold text-neutral mb-4">Cadastros nos ¨²ltimos 10 Anos</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="bg-light">
+                                <th class="border-b border-gray-200 px-4 py-3 text-left font-semibold text-gray-700">Ano</th>
+                                <th class="border-b border-gray-200 px-4 py-3 text-left font-semibold text-gray-700">Socio Novos</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cadastroAnoList">
+                            <!-- Linhas inseridas via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mensagem de Erro -->
+        <div id="errorMsg" class="hidden mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            <i class="fa fa-exclamation-circle mr-2"></i>
+            <span id="errorText"></span>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileUpload = document.getElementById('fileUpload');
+            const fileInfo = document.getElementById('fileInfo');
+            const fileName = document.getElementById('fileName');
+            const results = document.getElementById('results');
+            const errorMsg = document.getElementById('errorMsg');
+            const errorText = document.getElementById('errorText');
+
+            // Elementos dos resultados
+            const qtdUCLigado = document.getElementById('qtdUCLigado');
+            const qtdAssociados = document.getElementById('qtdAssociados');
+            const sexoM = document.getElementById('sexoM');
+            const sexoF = document.getElementById('sexoF');
+            const sexoO = document.getElementById('sexoO');
+            const usaMdmList = document.getElementById('usaMdmList');
+            const idTarifaList = document.getElementById('idTarifaList');
+            const faseList = document.getElementById('faseList');
+            const qtdMicroGeracaoTotal = document.getElementById('qtdMicroGeracaoTotal');
+            const qtdMicroGeracaoLigadoS = document.getElementById('qtdMicroGeracaoLigadoS');
+            const cadastroAnoList = document.getElementById('cadastroAnoList');
+
+            fileUpload.addEventListener('change', handleFileUpload);
+
+            function handleFileUpload(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (!file.name.endsWith('.xls') && !file.name.endsWith('.xlsx')) {
+                    showError('Formato inválido. Envie um arquivo .xls ou .xlsx');
+                    return;
+                }
+
+                fileName.textContent = file.name;
+                fileInfo.classList.remove('hidden');
+                errorMsg.classList.add('hidden');
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const data = new Uint8Array(event.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        
+                        // Pega a primeira aba
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        
+                        // Converte para JSON
+                        const dados = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+                        
+                        if (dados.length === 0) {
+                            showError('O arquivo não contém dados válidos');
+                            return;
+                        }
+
+                        processarDados(dados);
+                        results.classList.remove('hidden');
+                        results.scrollIntoView({behavior: 'smooth'});
+                    } catch (err) {
+                        showError('Erro ao processar: ' + err.message);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            function processarDados(dados) {
+                // Inicializa contadores e conjunto para remover duplicatas
+                let contUCLigado = 0;
+                const associadosUnicos = new Set(); // Para não contar duplicados
+                let contSexo = {M: 0, F: 0, O: 0};
+                let contUsaMdm = {};
+                let contIdTarifa = {};
+                let contFase = {};
+                let contMicroGeracaoTotal = 0;
+                let contMicroGeracaoLigadoS = 0;
+                let contCadastroAno = {};
+
+                // Define últimos 10 anos
+                const anoAtual = new Date().getFullYear();
+                const anosLimite = Array.from({length: 10}, (_, i) => anoAtual - 9 + i);
+
+                // Processa cada linha
+                dados.forEach(linha => {
+                    // Normaliza os nomes das colunas para maiúsculo
+                    const l = {};
+                    Object.keys(linha).forEach(chave => {
+                        l[chave.toUpperCase()] = linha[chave];
+                    });
+
+                    // 1. Quantidade UC ligado='S'
+                    if (l['LIGADO'] === 'S') {
+                        contUCLigado++;
+
+                        // 5. IDTARIFA com ligado='S'
+                        const idTarifaValor = l['IDTARIFA'] || 'N?o informado';
+                        contIdTarifa[idTarifaValor] = (contIdTarifa[idTarifaValor] || 0) + 1;
+
+                        // 6. FASE com ligado='S'
+                        const faseValor = l['FASE'] || 'Não informado';
+                        contFase[faseValor] = (contFase[faseValor] || 0) + 1;
+
+                        // 8. Micro Geração = 'S' com ligado='S'
+                        if (l['MICRO_GERACAO'] === 'S') contMicroGeracaoLigadoS++;
+                    }
+
+                    // 2. Quantos Associados - ASSOCIADO = 'S' (não duplicados)
+                    if (l['ASSOCIADO'] === 'S') {
+                        // Usa o campo ID ou identificador único para evitar duplicidade
+                        const idUnico = l['ID'] || l['CODIGO'] || JSON.stringify(linha);
+                        associadosUnicos.add(idUnico);
+                    }
+
+                    // 3. Somatório de 'M', 'F' e 'O' no campo SEXO
+                    const sexoValor = (l['SEXO'] || '').toUpperCase();
+                    if (sexoValor === 'M' || sexoValor === 'F' || sexoValor === 'O') {
+                        contSexo[sexoValor]++;
+                    }
+
+                    // 4. USA_MDM: todos os campos e quantidade de cada um (todos os registros)
+                    const usaMdmValor = l['USA_MDM'] || 'Não informado';
+                    contUsaMdm[usaMdmValor] = (contUsaMdm[usaMdmValor] || 0) + 1;
+
+                    // 7. Quantos no campo "MICRO_GERACAO" (todos os 'S')
+                    if (l['MICRO_GERACAO'] === 'S') contMicroGeracaoTotal++;
+
+                    // 9. Quantos sócios nos últimos 10 anos (DATA_CADASTRO)
+                    if (l['DATA_CADASTRO']) {
+                        let anoCad = null;
+                        const dataValor = l['DATA_CADASTRO'];
+
+                        // Trata formato de texto (DD/MM/AAAA)
+                        if (typeof dataValor === 'string') {
+                            const match = dataValor.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                            if (match) anoCad = parseInt(match[3]);
+                        }
+                        // Trata formato de data do Excel (número)
+                        else if (typeof dataValor === 'number') {
+                            const dataConvertida = XLSX.SSF.parse_date_code(dataValor);
+                            anoCad = dataConvertida.y;
+                        }
+                        // Trata objeto Data
+                        else if (dataValor instanceof Date) {
+                            anoCad = dataValor.getFullYear();
+                        }
+
+                        if (anoCad && anosLimite.includes(anoCad)) {
+                            contCadastroAno[anoCad] = (contCadastroAno[anoCad] || 0) + 1;
+                        }
+                    }
+                });
+
+                // Atualiza valores na tela
+                qtdUCLigado.textContent = contUCLigado;
+                qtdAssociados.textContent = associadosUnicos.size; // Tamanho do conjunto = únicos
+                sexoM.textContent = contSexo.M;
+                sexoF.textContent = contSexo.F;
+                sexoO.textContent = contSexo.O;
+                qtdMicroGeracaoTotal.textContent = contMicroGeracaoTotal;
+                qtdMicroGeracaoLigadoS.textContent = contMicroGeracaoLigadoS;
+
+                // Preenche lista USA MDM
+                usaMdmList.innerHTML = '';
+                Object.entries(contUsaMdm).sort((a,b) => a[0].localeCompare(b[0])).forEach(([valor, qtd]) => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-light rounded-lg p-3';
+                    div.innerHTML = `<p class="font-medium">${valor}</p><p class="text-sm text-gray-600">Quantidade: ${qtd}</p>`;
+                    usaMdmList.appendChild(div);
+                });
+
+                // Preenche lista ID Tarifa
+                idTarifaList.innerHTML = '';
+                Object.entries(contIdTarifa).sort((a,b) => a[0].localeCompare(b[0])).forEach(([valor, qtd]) => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-light rounded-lg p-3';
+                    div.innerHTML = `<p class="font-medium">${valor}</p><p class="text-sm text-gray-600">Quantidade: ${qtd}</p>`;
+                    idTarifaList.appendChild(div);
+                });
+
+                // Preenche lista Fase
+                faseList.innerHTML = '';
+                Object.entries(contFase).sort((a,b) => a[0].localeCompare(b[0])).forEach(([valor, qtd]) => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-light rounded-lg p-3';
+                    div.innerHTML = `<p class="font-medium">${valor}</p><p class="text-sm text-gray-600">Quantidade: ${qtd}</p>`;
+                    faseList.appendChild(div);
+                });
+
+                // Preenche tabela de cadastros por ano
+                cadastroAnoList.innerHTML = '';
+                anosLimite.sort((a,b) => a - b).forEach(ano => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+                    tr.innerHTML = `
+                        <td class="px-4 py-3">${ano}</td>
+                        <td class="px-4 py-3">${contCadastroAno[ano] || 0}</td>
+                    `;
+                    cadastroAnoList.appendChild(tr);
+                });
+            }
+
+            function showError(mensagem) {
+                errorText.textContent = mensagem;
+                errorMsg.classList.remove('hidden');
+                results.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
