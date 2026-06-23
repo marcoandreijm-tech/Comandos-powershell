@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEJAMA - Cálculo de Proporção de Leitura</title>
+
+<style>
+:root{
+    --verde:#0f7b3a;
+    --verde-claro:#19a04d;
+    --cinza:#f4f6f8;
+    --texto:#333;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Segoe UI, Arial, sans-serif;
+}
+
+body{
+    background:var(--cinza);
+    color:var(--texto);
+    padding:20px;
+}
+
+.container{
+    max-width:1000px;
+    margin:auto;
+}
+
+.header{
+    background:linear-gradient(135deg,var(--verde),var(--verde-claro));
+    color:white;
+    padding:25px;
+    border-radius:15px;
+    text-align:center;
+    margin-bottom:20px;
+    box-shadow:0 4px 15px rgba(0,0,0,.15);
+}
+
+.header h1{
+    margin-bottom:5px;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    border-radius:15px;
+    margin-bottom:20px;
+    box-shadow:0 3px 10px rgba(0,0,0,.08);
+}
+
+.card h2{
+    color:var(--verde);
+    margin-bottom:15px;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:15px;
+}
+
+label{
+    display:block;
+    font-weight:600;
+    margin-bottom:5px;
+}
+
+input{
+    width:100%;
+    padding:10px;
+    border:1px solid #ccc;
+    border-radius:8px;
+    font-size:15px;
+}
+
+.resultado{
+    background:#ecfff3;
+    border-left:6px solid var(--verde);
+}
+
+.resultado-item{
+    padding:8px 0;
+    border-bottom:1px solid #ddd;
+    font-size:16px;
+}
+
+.resultado-item:last-child{
+    border-bottom:none;
+}
+
+.destaque{
+    color:var(--verde);
+    font-weight:bold;
+    font-size:22px;
+}
+
+.botoes{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+button{
+    background:var(--verde);
+    color:white;
+    border:none;
+    padding:12px 20px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:15px;
+}
+
+button:hover{
+    background:var(--verde-claro);
+}
+
+@media print{
+    .botoes{
+        display:none;
+    }
+
+    body{
+        background:white;
+    }
+
+    .card{
+        box-shadow:none;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <h1>CEJAMA</h1>
+        <p>Calculadora de Proporção de Leitura</p>
+    </div>
+
+    <div class="card">
+        <h2>Última Leitura</h2>
+
+        <div class="grid">
+            <div>
+                <label>Data da Última Leitura</label>
+                <input type="date" id="dataAnterior">
+            </div>
+
+            <div>
+                <label>Leitura Anterior (kWh)</label>
+                <input type="number" id="leituraAnterior" step="0.01">
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Leitura Atual</h2>
+
+        <div class="grid">
+            <div>
+                <label>Data Atual</label>
+                <input type="date" id="dataAtual">
+            </div>
+
+            <div>
+                <label>Leitura Atual (kWh)</label>
+                <input type="number" id="leituraAtual" step="0.01">
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Data que Deveria Ter Sido Realizada a Leitura</h2>
+
+        <div class="grid">
+            <div>
+                <label>Data Desejada</label>
+                <input type="date" id="dataDesejada">
+            </div>
+        </div>
+    </div>
+
+    <div class="card resultado">
+        <h2>Resultado</h2>
+
+        <div class="resultado-item">
+            Dias entre leituras:
+            <span id="diasTotal">0</span>
+        </div>
+
+        <div class="resultado-item">
+            Consumo total:
+            <span id="consumoTotal">0</span> kWh
+        </div>
+
+        <div class="resultado-item">
+            Média diária:
+            <span id="mediaDiaria">0</span> kWh/dia
+        </div>
+
+        <div class="resultado-item">
+            Dias proporcionais:
+            <span id="diasProporcionais">0</span>
+        </div>
+
+        <div class="resultado-item">
+            Consumo proporcional:
+            <span id="consumoProporcional">0</span> kWh
+        </div>
+
+        <div class="resultado-item destaque">
+            Leitura que deveria ser:
+            <span id="leituraCalculada">0</span> kWh
+        </div>
+
+        <div class="resultado-item">
+            Diferença para leitura atual:
+            <span id="diferenca">0</span> kWh
+        </div>
+    </div>
+
+    <div class="botoes">
+        <button onclick="window.print()">🖨 Imprimir</button>
+        <button onclick="limpar()">🗑 Limpar</button>
+    </div>
+
+</div>
+
+<script>
+
+const campos = document.querySelectorAll("input");
+
+campos.forEach(campo=>{
+    campo.addEventListener("input", calcular);
+});
+
+function calcular(){
+
+    const dataAnterior = new Date(document.getElementById("dataAnterior").value);
+    const leituraAnterior = parseFloat(document.getElementById("leituraAnterior").value);
+
+    const dataAtual = new Date(document.getElementById("dataAtual").value);
+    const leituraAtual = parseFloat(document.getElementById("leituraAtual").value);
+
+    const dataDesejada = new Date(document.getElementById("dataDesejada").value);
+
+    if(
+        isNaN(dataAnterior.getTime()) ||
+        isNaN(dataAtual.getTime()) ||
+        isNaN(dataDesejada.getTime()) ||
+        isNaN(leituraAnterior) ||
+        isNaN(leituraAtual)
+    ){
+        return;
+    }
+
+    const umDia = 1000 * 60 * 60 * 24;
+
+    const diasTotal = Math.round((dataAtual - dataAnterior) / umDia);
+
+    if(diasTotal <= 0) return;
+
+    const consumoTotal = leituraAtual - leituraAnterior;
+
+    const mediaDiaria = consumoTotal / diasTotal;
+
+    const diasProporcionais =
+        Math.round((dataDesejada - dataAnterior) / umDia);
+
+    const consumoProporcional =
+        mediaDiaria * diasProporcionais;
+
+    const leituraCalculada =
+        leituraAnterior + consumoProporcional;
+
+    const diferenca =
+        leituraAtual - leituraCalculada;
+
+    document.getElementById("diasTotal").innerText =
+        diasTotal;
+
+    document.getElementById("consumoTotal").innerText =
+        consumoTotal.toFixed(2);
+
+    document.getElementById("mediaDiaria").innerText =
+        mediaDiaria.toFixed(4);
+
+    document.getElementById("diasProporcionais").innerText =
+        diasProporcionais;
+
+    document.getElementById("consumoProporcional").innerText =
+        consumoProporcional.toFixed(2);
+
+    document.getElementById("leituraCalculada").innerText =
+        leituraCalculada.toFixed(2);
+
+    document.getElementById("diferenca").innerText =
+        diferenca.toFixed(2);
+}
+
+function limpar(){
+
+    document.querySelectorAll("input").forEach(campo=>{
+        campo.value = "";
+    });
+
+    document.getElementById("diasTotal").innerText = "0";
+    document.getElementById("consumoTotal").innerText = "0";
+    document.getElementById("mediaDiaria").innerText = "0";
+    document.getElementById("diasProporcionais").innerText = "0";
+    document.getElementById("consumoProporcional").innerText = "0";
+    document.getElementById("leituraCalculada").innerText = "0";
+    document.getElementById("diferenca").innerText = "0";
+}
+</script>
+
+</body>
+</html>
