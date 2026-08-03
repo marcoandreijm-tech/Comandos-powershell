@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pesquisa Google</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f2f2f2;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.container{
+    background:#fff;
+    padding:30px;
+    border-radius:10px;
+    box-shadow:0 0 15px rgba(0,0,0,.2);
+    width:420px;
+    text-align:center;
+}
+
+input{
+    width:100%;
+    padding:12px;
+    font-size:18px;
+    box-sizing:border-box;
+    margin:20px 0;
+}
+
+button{
+    padding:12px 25px;
+    font-size:16px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+    background:#4285F4;
+    color:#fff;
+}
+
+button:hover{
+    background:#3367D6;
+}
+
+#resultado{
+    margin-top:20px;
+    color:#555;
+    word-break:break-all;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h2>Pesquisar PDF</h2>
+
+<input
+    type="text"
+    id="nome"
+    placeholder="Digite o nome">
+
+<button onclick="pesquisar()">Pesquisar</button>
+
+<div id="resultado"></div>
+
+</div>
+
+<script>
+
+function pesquisar(){
+
+    let texto = document.getElementById("nome").value.trim();
+
+    if(texto==""){
+        alert("Digite um nome.");
+        return;
+    }
+
+    texto = texto
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g,"")
+        .replace(/\s+/g,"")
+        .replace(/[^a-zA-Z0-9]/g,"")
+        .toLowerCase();
+
+    let pesquisa = texto + "file:pdf";
+
+    document.getElementById("resultado").innerHTML =
+        "<b>Pesquisa:</b> " + pesquisa;
+
+    window.open(
+        "https://www.google.com/search?q=" + encodeURIComponent(pesquisa),
+        "_blank"
+    );
+
+}
+
+document.getElementById("nome").addEventListener("keypress", function(e){
+    if(e.key==="Enter"){
+        pesquisar();
+    }
+});
+
+</script>
+
+</body>
+</html>
