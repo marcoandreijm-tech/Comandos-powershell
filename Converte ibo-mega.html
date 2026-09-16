@@ -1,0 +1,322 @@
+from pathlib import Path
+
+html = r'''<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversor TXT</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:#f4f6f8;
+  color:#1f2937;
+}
+.container{
+  max-width:1100px;
+  margin:40px auto;
+  padding:24px;
+}
+.card{
+  background:#fff;
+  border-radius:16px;
+  padding:28px;
+  box-shadow:0 8px 30px rgba(0,0,0,.08);
+}
+h1{margin:0 0 8px;font-size:28px}
+.subtitle{margin:0 0 24px;color:#6b7280}
+.buttons{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  margin-bottom:20px;
+}
+button{
+  border:0;
+  border-radius:10px;
+  padding:14px 12px;
+  font-size:15px;
+  font-weight:bold;
+  cursor:pointer;
+  background:#2563eb;
+  color:#fff;
+}
+button:hover:not(:disabled){filter:brightness(.94)}
+button:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+#dropzone{
+  border:2px dashed #cbd5e1;
+  border-radius:14px;
+  padding:30px;
+  text-align:center;
+  cursor:pointer;
+  transition:.2s;
+  margin-bottom:18px;
+}
+#dropzone.active{
+  border-color:#2563eb;
+  background:#eff6ff;
+}
+.icon{font-size:36px;margin-bottom:8px}
+#fileName{color:#6b7280;margin-top:6px}
+.status{
+  min-height:24px;
+  margin:10px 0 18px;
+  color:#374151;
+  font-size:14px;
+}
+.panels{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+}
+label{
+  display:block;
+  font-weight:bold;
+  margin-bottom:8px;
+}
+textarea{
+  width:100%;
+  min-height:330px;
+  resize:vertical;
+  border:1px solid #d1d5db;
+  border-radius:12px;
+  padding:14px;
+  font-family:Consolas,Monaco,monospace;
+  font-size:13px;
+  line-height:1.55;
+  background:#fafafa;
+  color:#111827;
+}
+@media(max-width:750px){
+  .buttons{grid-template-columns:1fr 1fr}
+  .panels{grid-template-columns:1fr}
+  .container{margin:15px auto;padding:12px}
+  .card{padding:20px}
+}
+@media(max-width:430px){
+  .buttons{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="card">
+    <h1>📄 Conversor de TXT</h1>
+    <p class="subtitle">
+      Importe um TXT com <b>nome + URL</b> na mesma linha e converta para nome e URL em linhas separadas.
+    </p>
+
+    <div class="buttons">
+      <button id="importBtn" type="button">📂 Importar TXT</button>
+      <button id="convertBtn" type="button" disabled>⚙️ Converter</button>
+      <button id="viewBtn" type="button" disabled>👁️ Visualizar</button>
+      <button id="downloadBtn" type="button" disabled>⬇️ Baixar TXT</button>
+    </div>
+
+    <input id="fileInput" type="file" accept=".txt,text/plain" hidden>
+
+    <div id="dropzone" tabindex="0">
+      <div class="icon">📄</div>
+      <strong>Selecione ou arraste um arquivo TXT aqui</strong>
+      <div id="fileName">Nenhum arquivo selecionado</div>
+    </div>
+
+    <div id="status" class="status" aria-live="polite"></div>
+
+    <div class="panels">
+      <div>
+        <label for="original">Conteúdo original</label>
+        <textarea id="original" readonly
+          placeholder="O conteúdo do arquivo aparecerá aqui..."></textarea>
+      </div>
+
+      <div>
+        <label for="result">Resultado convertido</label>
+        <textarea id="result" readonly
+          placeholder="O resultado aparecerá aqui depois de clicar em Converter..."></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const fileInput = document.getElementById("fileInput");
+  const importBtn = document.getElementById("importBtn");
+  const convertBtn = document.getElementById("convertBtn");
+  const viewBtn = document.getElementById("viewBtn");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const dropzone = document.getElementById("dropzone");
+  const fileName = document.getElementById("fileName");
+  const status = document.getElementById("status");
+  const original = document.getElementById("original");
+  const result = document.getElementById("result");
+
+  let convertedText = "";
+
+  function atualizarBotoes() {
+    convertBtn.disabled = !original.value.trim();
+    viewBtn.disabled = !convertedText;
+    downloadBtn.disabled = !convertedText;
+  }
+
+  function carregarArquivo(file) {
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".txt")) {
+      status.textContent = "⚠️ Selecione um arquivo .txt.";
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+      original.value = String(e.target.result || "").replace(/^\uFEFF/, "");
+      result.value = "";
+      convertedText = "";
+
+      fileName.textContent = "Arquivo: " + file.name;
+      status.textContent = "✅ Arquivo importado. Clique em Converter.";
+      atualizarBotoes();
+    };
+
+    reader.onerror = function() {
+      status.textContent = "❌ Não foi possível ler o arquivo.";
+    };
+
+    reader.readAsText(file, "UTF-8");
+  }
+
+  function converter() {
+    const linhas = original.value.split(/\r?\n/);
+    const saida = [];
+    let convertidas = 0;
+    let ignoradas = 0;
+
+    for (const linhaOriginal of linhas) {
+      const linha = linhaOriginal.trim();
+
+      if (!linha) continue;
+
+      /*
+       * Captura:
+       * nome + espaços + URL
+       *
+       * A URL é capturada sem espaços no final.
+       */
+      const match = linha.match(/^(\S+)\s+(https?:\/\/\S+)\s*$/i);
+
+      if (match) {
+        const nome = match[1].trim();
+        const url = match[2].trim();
+
+        saida.push(nome);
+        saida.push(url);
+
+        convertidas++;
+      } else {
+        ignoradas++;
+      }
+    }
+
+    convertedText = saida.join("\n");
+    result.value = convertedText;
+
+    atualizarBotoes();
+
+    let mensagem = "✅ " + convertidas + " registro(s) convertido(s).";
+
+    if (ignoradas > 0) {
+      mensagem += " ⚠️ " + ignoradas +
+        " linha(s) não reconhecida(s) foram ignoradas.";
+    }
+
+    status.textContent = mensagem;
+  }
+
+  importBtn.addEventListener("click", () => {
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", e => {
+    carregarArquivo(e.target.files[0]);
+  });
+
+  convertBtn.addEventListener("click", converter);
+
+  viewBtn.addEventListener("click", () => {
+    result.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+    result.focus();
+  });
+
+  downloadBtn.addEventListener("click", () => {
+    if (!convertedText) return;
+
+    /*
+     * Garante uma única quebra de linha no final.
+     * Não adiciona espaços ao final dos links.
+     */
+    const textoFinal = convertedText.trimEnd() + "\n";
+
+    const blob = new Blob([textoFinal], {
+      type: "text/plain;charset=utf-8"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "convertido.txt";
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    status.textContent = "✅ Arquivo convertido.txt baixado.";
+  });
+
+  ["dragenter", "dragover"].forEach(eventName => {
+    dropzone.addEventListener(eventName, e => {
+      e.preventDefault();
+      dropzone.classList.add("active");
+    });
+  });
+
+  ["dragleave", "drop"].forEach(eventName => {
+    dropzone.addEventListener(eventName, e => {
+      e.preventDefault();
+      dropzone.classList.remove("active");
+    });
+  });
+
+  dropzone.addEventListener("drop", e => {
+    carregarArquivo(e.dataTransfer.files[0]);
+  });
+
+  dropzone.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
+'''
+
+path = Path("/mnt/data/conversor_txt.html")
+path.write_text(html, encoding="utf-8")
+print(path)
