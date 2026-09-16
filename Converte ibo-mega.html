@@ -26,10 +26,10 @@ body{
   box-shadow:0 8px 30px rgba(0,0,0,.08);
 }
 h1{margin:0 0 8px;font-size:28px}
-.subtitle{margin:0 0 24px;color:#6b7280}
+.subtitle{margin:0 0 24px;color:#6b7280;line-height:1.5}
 .buttons{
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(5,1fr);
   gap:12px;
   margin-bottom:20px;
 }
@@ -42,12 +42,15 @@ button{
   cursor:pointer;
   background:#2563eb;
   color:#fff;
+  transition:filter .15s;
 }
 button:hover:not(:disabled){filter:brightness(.94)}
 button:disabled{
   opacity:.45;
   cursor:not-allowed;
 }
+button.secondary{background:#6b7280}
+button.secondary:hover:not(:disabled){background:#4b5563}
 #dropzone{
   border:2px dashed #cbd5e1;
   border-radius:14px;
@@ -56,7 +59,9 @@ button:disabled{
   cursor:pointer;
   transition:.2s;
   margin-bottom:18px;
+  outline:none;
 }
+#dropzone:focus{border-color:#2563eb}
 #dropzone.active{
   border-color:#2563eb;
   background:#eff6ff;
@@ -68,13 +73,38 @@ button:disabled{
   margin:10px 0 18px;
   color:#374151;
   font-size:14px;
+  line-height:1.5;
+}
+.status.ok{color:#065f46}
+.status.warn{color:#92400e}
+.status.err{color:#991b1b}
+.config{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:14px;
+  padding:12px 14px;
+  background:#f9fafb;
+  border:1px solid #e5e7eb;
+  border-radius:10px;
+  font-size:14px;
+  flex-wrap:wrap;
+}
+.config label{font-weight:bold;margin:0}
+.config select{
+  padding:8px 12px;
+  border:1px solid #d1d5db;
+  border-radius:8px;
+  font-size:14px;
+  background:#fff;
+  cursor:pointer;
 }
 .panels{
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:18px;
 }
-label{
+label.panel-label{
   display:block;
   font-weight:bold;
   margin-bottom:8px;
@@ -91,6 +121,10 @@ textarea{
   line-height:1.55;
   background:#fafafa;
   color:#111827;
+}
+textarea:focus{outline:2px solid #93c5fd;outline-offset:1px}
+@media(max-width:900px){
+  .buttons{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:750px){
   .buttons{grid-template-columns:1fr 1fr}
@@ -109,35 +143,47 @@ textarea{
   <div class="card">
     <h1>📄 Conversor de TXT</h1>
     <p class="subtitle">
-      Importe um TXT com <b>nome + URL</b> na mesma linha e converta para nome e URL em linhas separadas.
+      Importe um TXT com <b>nome + host + usuário + senha</b> (ou URL já completa)
+      e gere as URLs no formato Xtream Codes:
+      <code>http://host:porta/get.php?username=USER&amp;password=PASS&amp;type=m3u_plus&amp;output=m3u8</code>
     </p>
 
     <div class="buttons">
       <button id="importBtn" type="button">📂 Importar TXT</button>
       <button id="convertBtn" type="button" disabled>⚙️ Converter</button>
       <button id="viewBtn" type="button" disabled>👁️ Visualizar</button>
-      <button id="downloadBtn" type="button" disabled>⬇️ Baixar TXT</button>
+      <button id="copyBtn" type="button" class="secondary" disabled>📋 Copiar</button>
+      <button id="downloadBtn" type="button" class="secondary" disabled>⬇️ Baixar TXT</button>
     </div>
 
     <input id="fileInput" type="file" accept=".txt,text/plain" hidden>
 
-    <div id="dropzone" tabindex="0">
+    <div id="dropzone" tabindex="0" role="button" aria-label="Selecionar ou arrastar arquivo TXT">
       <div class="icon">📄</div>
       <strong>Selecione ou arraste um arquivo TXT aqui</strong>
       <div id="fileName">Nenhum arquivo selecionado</div>
+    </div>
+
+    <div class="config">
+      <label for="outputFormat">Formato de saída:</label>
+      <select id="outputFormat">
+        <option value="respeitar" selected>Respeitar original (padrão m3u8)</option>
+        <option value="m3u8">Forçar m3u8</option>
+        <option value="ts">Forçar ts</option>
+      </select>
     </div>
 
     <div id="status" class="status" aria-live="polite"></div>
 
     <div class="panels">
       <div>
-        <label for="original">Conteúdo original</label>
+        <label class="panel-label" for="original">Conteúdo original</label>
         <textarea id="original" readonly
           placeholder="O conteúdo do arquivo aparecerá aqui..."></textarea>
       </div>
 
       <div>
-        <label for="result">Resultado convertido</label>
+        <label class="panel-label" for="result">Resultado convertido</label>
         <textarea id="result" readonly
           placeholder="O resultado aparecerá aqui depois de clicar em Converter..."></textarea>
       </div>
@@ -147,131 +193,201 @@ textarea{
 
 <script>
 (() => {
-  const fileInput = document.getElementById("fileInput");
-  const importBtn = document.getElementById("importBtn");
-  const convertBtn = document.getElementById("convertBtn");
-  const viewBtn = document.getElementById("viewBtn");
-  const downloadBtn = document.getElementById("downloadBtn");
-  const dropzone = document.getElementById("dropzone");
-  const fileName = document.getElementById("fileName");
-  const status = document.getElementById("status");
-  const original = document.getElementById("original");
-  const result = document.getElementById("result");
+  "use strict";
+
+  /* ---------- Referências do DOM ---------- */
+  const fileInput    = document.getElementById("fileInput");
+  const importBtn    = document.getElementById("importBtn");
+  const convertBtn   = document.getElementById("convertBtn");
+  const viewBtn      = document.getElementById("viewBtn");
+  const copyBtn      = document.getElementById("copyBtn");
+  const downloadBtn  = document.getElementById("downloadBtn");
+  const dropzone     = document.getElementById("dropzone");
+  const fileNameEl   = document.getElementById("fileName");
+  const statusEl     = document.getElementById("status");
+  const original     = document.getElementById("original");
+  const result       = document.getElementById("result");
+  const outputFormat = document.getElementById("outputFormat");
 
   let convertedText = "";
 
-  function atualizarBotoes() {
-    convertBtn.disabled = !original.value.trim();
-    viewBtn.disabled = !convertedText;
-    downloadBtn.disabled = !convertedText;
+  /* ---------- Utilidades ---------- */
+  function setStatus(msg, tipo) {
+    statusEl.className = "status" + (tipo ? " " + tipo : "");
+    statusEl.textContent = msg;
   }
 
+  function atualizarBotoes() {
+    convertBtn.disabled  = !original.value.trim();
+    const temResultado   = convertedText.length > 0;
+    viewBtn.disabled     = !temResultado;
+    copyBtn.disabled     = !temResultado;
+    downloadBtn.disabled = !temResultado;
+  }
+
+  /*
+   * Monta a URL final no padrão Xtream Codes.
+   * baseUrl pode vir com ou sem barra final e com ou sem get.php.
+   */
+  function montarUrlCompleta(baseUrl, username, password, output) {
+    // Remove barra final e qualquer coisa depois de get.php
+    let base = String(baseUrl).trim().replace(/\/+$/, "");
+    base = base.split("/get.php")[0].split("?")[0];
+
+    return (
+      base +
+      "/get.php?username=" + encodeURIComponent(username) +
+      "&password=" + encodeURIComponent(password) +
+      "&type=m3u_plus&output=" + output
+    );
+  }
+
+  /* ---------- Importação do arquivo ---------- */
   function carregarArquivo(file) {
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith(".txt")) {
-      status.textContent = "⚠️ Selecione um arquivo .txt.";
+      setStatus("⚠️ Selecione um arquivo .txt.", "warn");
       return;
     }
 
     const reader = new FileReader();
 
-    reader.onload = function(e) {
-      original.value = String(e.target.result || "").replace(/^\uFEFF/, "");
-      result.value = "";
-      convertedText = "";
+    reader.onload = function (e) {
+      original.value  = String(e.target.result || "").replace(/^\uFEFF/, "");
+      result.value    = "";
+      convertedText   = "";
 
-      fileName.textContent = "Arquivo: " + file.name;
-      status.textContent = "✅ Arquivo importado. Clique em Converter.";
+      fileNameEl.textContent = "Arquivo: " + file.name;
+      setStatus("✅ Arquivo importado. Clique em Converter.", "ok");
       atualizarBotoes();
     };
 
-    reader.onerror = function() {
-      status.textContent = "❌ Não foi possível ler o arquivo.";
+    reader.onerror = function () {
+      setStatus("❌ Não foi possível ler o arquivo.", "err");
     };
 
     reader.readAsText(file, "UTF-8");
   }
 
+  /* ---------- Conversão ---------- */
   function converter() {
     const linhas = original.value.split(/\r?\n/);
-    const saida = [];
-    let convertidas = 0;
-    let ignoradas = 0;
+    const saida  = [];
+
+    let montadas  = 0; // reconstruímos a partir de host + user + pass
+    let mantidas  = 0; // já tinham get.php?username=...&password=...
+    let ignoradas = 0; // sem URL ou sem tokens suficientes
+
+    const modoOutput = outputFormat.value; // "respeitar" | "m3u8" | "ts"
 
     for (const linhaOriginal of linhas) {
       const linha = linhaOriginal.trim();
-
       if (!linha) continue;
 
-      /*
-       * Captura:
-       * nome + espaços + URL
-       *
-       * A URL é capturada sem espaços no final.
-       */
-      const match = linha.match(/^(\S+)\s+(https?:\/\/\S+)\s*$/i);
+      // 1) Localiza a URL (http:// ou https://) em qualquer posição
+      const urlMatch = linha.match(/(https?:\/\/\S+)/i);
+      if (!urlMatch) { ignoradas++; continue; }
 
-      if (match) {
-        const nome = match[1].trim();
-        const url = match[2].trim();
+      const urlEncontrada = urlMatch[1];
+      const posicao       = urlMatch.index;
+      const nome          = linha.slice(0, posicao).trim();
+      const depois        = linha.slice(posicao + urlEncontrada.length).trim();
+      const tokens        = depois ? depois.split(/\s+/) : [];
 
-        saida.push(nome);
-        saida.push(url);
-
-        convertidas++;
+      // 2) Decide o output a usar
+      let outputFinal = "m3u8";
+      if (modoOutput === "m3u8" || modoOutput === "ts") {
+        outputFinal = modoOutput;
       } else {
-        ignoradas++;
+        // "respeitar": pega o que já tem na URL, senão m3u8
+        const m = urlEncontrada.match(/[?&]output=([^&]+)/i);
+        outputFinal = m ? decodeURIComponent(m[1]) : "m3u8";
       }
+
+      // 3) Caso A — URL já contém get.php?username=...&password=...
+      if (/get\.php\?[^#]*username=/i.test(urlEncontrada)) {
+        const u = urlEncontrada.match(/[?&]username=([^&]+)/i);
+        const p = urlEncontrada.match(/[?&]password=([^&]+)/i);
+
+        if (u && p) {
+          const base = urlEncontrada.split("/get.php")[0];
+          const completa = montarUrlCompleta(base, u[1], p[1], outputFinal);
+
+          if (nome) saida.push(nome);
+          saida.push(completa);
+          mantidas++;
+          continue;
+        }
+      }
+
+      // 4) Caso B — host + usuário + senha nas colunas seguintes
+      if (tokens.length >= 2) {
+        const username = tokens[0];
+        const password = tokens[1];
+        const completa = montarUrlCompleta(urlEncontrada, username, password, outputFinal);
+
+        if (nome) saida.push(nome);
+        saida.push(completa);
+        montadas++;
+        continue;
+      }
+
+      // 5) Caso C — só a URL (sem credenciais) — mantém como veio
+      if (nome) saida.push(nome);
+      saida.push(urlEncontrada);
+      mantidas++;
     }
 
     convertedText = saida.join("\n");
-    result.value = convertedText;
-
+    result.value  = convertedText;
     atualizarBotoes();
 
-    let mensagem = "✅ " + convertidas + " registro(s) convertido(s).";
-
+    let msg = "✅ " + montadas + " URL(s) montada(s), " +
+              mantidas + " mantida(s).";
     if (ignoradas > 0) {
-      mensagem += " ⚠️ " + ignoradas +
-        " linha(s) não reconhecida(s) foram ignoradas.";
+      msg += " ⚠️ " + ignoradas + " linha(s) ignorada(s).";
     }
-
-    status.textContent = mensagem;
+    setStatus(msg, ignoradas > 0 ? "warn" : "ok");
   }
 
-  importBtn.addEventListener("click", () => {
-    fileInput.click();
-  });
+  /* ---------- Eventos dos botões ---------- */
+  importBtn.addEventListener("click", () => fileInput.click());
 
-  fileInput.addEventListener("change", e => {
+  fileInput.addEventListener("change", (e) => {
     carregarArquivo(e.target.files[0]);
+    // Permite recarregar o mesmo arquivo depois
+    fileInput.value = "";
   });
 
   convertBtn.addEventListener("click", converter);
 
   viewBtn.addEventListener("click", () => {
-    result.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
+    result.scrollIntoView({ behavior: "smooth", block: "center" });
     result.focus();
+  });
+
+  copyBtn.addEventListener("click", async () => {
+    if (!convertedText) return;
+    try {
+      await navigator.clipboard.writeText(convertedText);
+      setStatus("✅ Resultado copiado para a área de transferência.", "ok");
+    } catch (err) {
+      // Fallback para navegadores antigos / sem HTTPS
+      result.removeAttribute("readonly");
+      result.select();
+      document.execCommand("copy");
+      result.setAttribute("readonly", "readonly");
+      setStatus("✅ Resultado copiado (fallback).", "ok");
+    }
   });
 
   downloadBtn.addEventListener("click", () => {
     if (!convertedText) return;
 
-    /*
-     * Garante uma única quebra de linha no final.
-     * Não adiciona espaços ao final dos links.
-     */
     const textoFinal = convertedText.trimEnd() + "\n";
-
-    const blob = new Blob([textoFinal], {
-      type: "text/plain;charset=utf-8"
-    });
-
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([textoFinal], { type: "text/plain;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
     const link = document.createElement("a");
 
     link.href = url;
@@ -282,34 +398,42 @@ textarea{
     link.remove();
 
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-    status.textContent = "✅ Arquivo convertido.txt baixado.";
+    setStatus("✅ Arquivo convertido.txt baixado.", "ok");
   });
 
-  ["dragenter", "dragover"].forEach(eventName => {
-    dropzone.addEventListener(eventName, e => {
+  /* ---------- Drag & drop ---------- */
+  ["dragenter", "dragover"].forEach((ev) => {
+    dropzone.addEventListener(ev, (e) => {
       e.preventDefault();
+      e.stopPropagation();
       dropzone.classList.add("active");
     });
   });
 
-  ["dragleave", "drop"].forEach(eventName => {
-    dropzone.addEventListener(eventName, e => {
+  ["dragleave", "drop"].forEach((ev) => {
+    dropzone.addEventListener(ev, (e) => {
       e.preventDefault();
+      e.stopPropagation();
       dropzone.classList.remove("active");
     });
   });
 
-  dropzone.addEventListener("drop", e => {
-    carregarArquivo(e.dataTransfer.files[0]);
+  dropzone.addEventListener("drop", (e) => {
+    const file = e.dataTransfer && e.dataTransfer.files[0];
+    carregarArquivo(file);
   });
 
-  dropzone.addEventListener("keydown", e => {
+  dropzone.addEventListener("click", () => fileInput.click());
+
+  dropzone.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       fileInput.click();
     }
   });
+
+  /* ---------- Estado inicial ---------- */
+  atualizarBotoes();
 })();
 </script>
 
@@ -317,6 +441,18 @@ textarea{
 </html>
 '''
 
-path = Path("/mnt/data/conversor_txt.html")
-path.write_text(html, encoding="utf-8")
-print(path)
+# Escolhe um caminho que funcione no Colab e localmente
+candidatos = [
+    Path("/mnt/data/conversor_txt.html"),
+    Path.home() / "conversor_txt.html",
+    Path.cwd() / "conversor_txt.html",
+]
+destino = next(
+    (p for p in candidatos if p.parent.exists()),
+    Path.cwd() / "conversor_txt.html"
+)
+destino.parent.mkdir(parents=True, exist_ok=True)
+destino.write_text(html, encoding="utf-8")
+
+print(f"✅ HTML gerado em: {destino.resolve()}")
+print(f"   Tamanho: {destino.stat().st_size} bytes")
