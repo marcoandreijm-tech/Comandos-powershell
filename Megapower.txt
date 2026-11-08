@@ -1,0 +1,49 @@
+# Abre janela para o usuário escolher o arquivo .txt
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title = "Selecione o arquivo TXT"
+$dialog.Filter = "Arquivos de texto (*.txt)|*.txt|Todos os arquivos (*.*)|*.*"
+$dialog.InitialDirectory = [Environment]::GetFolderPath("Desktop")
+
+if ($dialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
+    Write-Host "Nenhum arquivo selecionado. Encerrando..."
+    exit
+}
+
+$arquivo = $dialog.FileName
+Write-Host "Arquivo selecionado: $arquivo"
+
+if (-not (Test-Path $arquivo)) {
+    Write-Error "Arquivo não encontrado: $arquivo"
+    exit
+}
+
+# ⏳ Espera 4 segundos — clique na janela de destino agora!
+Write-Host "Colando em 4 segundos... clique na janela de destino."
+Start-Sleep -Seconds 4
+
+# Cria o objeto para SendKeys
+$wshell = New-Object -ComObject WScript.Shell
+
+$linha = 0
+
+Get-Content $arquivo | ForEach-Object {
+    $linha++
+    $texto = $_
+
+    Write-Host "[$linha] Colando: $texto"
+
+    # Copia a linha para a área de transferência
+    Set-Clipboard -Value $texto
+
+    # Pequena pausa para garantir que a área de transferência foi atualizada
+    Start-Sleep -Milliseconds 50
+
+    # Cola (Ctrl+V) e pressiona Enter
+    $wshell.SendKeys("^v")
+    Start-Sleep -Milliseconds 50
+    $wshell.SendKeys("{ENTER}")
+    Start-Sleep -Milliseconds 50
+}
+
+Write-Host "Concluído. Total de linhas coladas: $linha"
