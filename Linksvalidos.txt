@@ -1,0 +1,56 @@
+Add-Type -AssemblyName System.Windows.Forms
+
+# Selecionar arquivo
+$OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+$OpenFileDialog.Filter = "Arquivos TXT (*.txt)|*.txt"
+$OpenFileDialog.Title = "Selecione o arquivo com os links"
+
+if ($OpenFileDialog.ShowDialog() -eq "OK") {
+
+    $InputFile = $OpenFileDialog.FileName
+    $Folder = Split-Path $InputFile
+
+    # Arquivo de saída
+    $OutputFile = Join-Path $Folder "Links_Validos.txt"
+
+    # Limpar saída antiga
+    if (Test-Path $OutputFile) {
+        Clear-Content $OutputFile
+    }
+
+    # Ler arquivo
+    Get-Content $InputFile | ForEach-Object {
+
+        $url = $_.Trim()
+
+        # Somente URLs válidas
+        if ($url -match '^https?://') {
+
+            try {
+
+                $response = Invoke-WebRequest `
+                    -Uri $url `
+                    -UseBasicParsing `
+                    -TimeoutSec 30 `
+                    -ErrorAction Stop
+
+                if ($response.StatusCode -eq 200) {
+
+                    # Mostrar apenas válidos
+                    Write-Host $url -ForegroundColor Green
+
+                    # Salvar no arquivo
+                    Add-Content -Path $OutputFile -Value $url
+                }
+
+            }
+            catch {
+            }
+        }
+    }
+
+    Write-Host ""
+    Write-Host "Concluído!" -ForegroundColor Cyan
+    Write-Host "Arquivo salvo em:"
+    Write-Host $OutputFile
+}
