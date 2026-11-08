@@ -1,0 +1,4 @@
+Get-Content "arquivo.txt" | Sort-Object | Set-Content "gerado.txt"
+Get-Content "gerado.txt" | ForEach-Object {
+    "http://c.srvxui.top/get.php?username=" + ($_ -replace ":", "&password=") + "&type=m3u_plus"
+} | Set-Content "linkgerado.txt" -Encoding UTF8
