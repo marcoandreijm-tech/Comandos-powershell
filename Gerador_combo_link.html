@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerador de Links M3U</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    color: #e2e8f0;
+    min-height: 100vh;
+    margin: 0;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .container {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 28px;
+    width: 100%;
+    max-width: 900px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  }
+  h1 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    color: #38bdf8;
+  }
+  p.sub {
+    margin: 0 0 24px;
+    color: #94a3b8;
+    font-size: 14px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #cbd5e1;
+  }
+  input[type="text"], textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-family: "Consolas", "Monaco", monospace;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  input[type="text"]:focus, textarea:focus {
+    border-color: #38bdf8;
+  }
+  textarea {
+    resize: vertical;
+    min-height: 180px;
+    line-height: 1.5;
+  }
+  .field { margin-bottom: 18px; }
+  .row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+  button {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .1s, background .2s;
+  }
+  button:active { transform: scale(.97); }
+  .btn-primary {
+    background: #38bdf8;
+    color: #0f172a;
+  }
+  .btn-primary:hover { background: #0ea5e9; }
+  .btn-copy {
+    background: #22c55e;
+    color: #0f172a;
+  }
+  .btn-copy:hover { background: #16a34a; }
+  .btn-clear {
+    background: #475569;
+    color: #e2e8f0;
+  }
+  .btn-clear:hover { background: #64748b; }
+  .file-btn {
+    background: #6366f1;
+    color: #fff;
+  }
+  .file-btn:hover { background: #4f46e5; }
+  input[type="file"] { display: none; }
+  .status {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #94a3b8;
+    min-height: 18px;
+  }
+  .status.ok { color: #22c55e; }
+  .status.err { color: #ef4444; }
+  .hint {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 6px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 700px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Gerador de Links M3U</h1>
+  <p class="sub">Cole o link base, insira os pares <code>usuario:senha</code> e gere os links finais.</p>
+
+  <div class="field">
+    <label for="baseUrl">Link base</label>
+    <input type="text" id="baseUrl" value="http://c.srvxui.top" placeholder="http://c.srvxui.top">
+    <div class="hint">Será usado como prefixo: <code>{base}/get.php?username=...&password=...&type=m3u_plus</code></div>
+  </div>
+
+  <div class="row">
+    <button class="file-btn" onclick="document.getElementById('fileInput').click()">📂 Carregar TXT</button>
+    <input type="file" id="fileInput" accept=".txt" onchange="carregarTxt(event)">
+    <button class="btn-primary" onclick="processar()">⚙️ Gerar Links</button>
+    <button class="btn-copy" onclick="copiarResultado()">📋 Copiar Tudo</button>
+    <button class="btn-clear" onclick="limpar()">🗑️ Limpar</button>
+  </div>
+
+  <div class="grid">
+    <div class="field">
+      <label for="entrada">Entrada (usuario:senha — uma por linha)</label>
+      <textarea id="entrada" placeholder="usuario1:senha1&#10;usuario2:senha2&#10;usuario3:senha3"></textarea>
+    </div>
+    <div class="field">
+      <label for="saida">Links gerados</label>
+      <textarea id="saida" readonly placeholder="Os links aparecerão aqui..."></textarea>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+  const inputBase   = document.getElementById('baseUrl');
+  const inputEntrada = document.getElementById('entrada');
+  const inputSaida  = document.getElementById('saida');
+  const statusEl    = document.getElementById('status');
+
+  // Remove "/" final do link base para evitar "//get.php"
+  function normalizarBase(base) {
+    return base.trim().replace(/\/+$/, '');
+  }
+
+  function carregarTxt(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      inputEntrada.value = e.target.result;
+      setStatus(`Arquivo "${file.name}" carregado.`, 'ok');
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function processar() {
+    const base = normalizarBase(inputBase.value);
+    if (!base) {
+      setStatus('Informe o link base.', 'err');
+      return;
+    }
+
+    // Separa linhas, remove vazias, ordena e elimina duplicados
+    const linhas = inputEntrada.value
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l.length > 0);
+
+    const unicas = [...new Set(linhas)].sort();
+
+    const links = unicas.map(linha => {
+      // Troca o primeiro ":" por "&password="
+      const convertido = linha.replace(':', '&password=');
+      return `${base}/get.php?username=${convertido}&type=m3u_plus`;
+    });
+
+    inputSaida.value = links.join('\n');
+
+    const removidas = linhas.length - unicas.length;
+    setStatus(
+      `✅ ${unicas.length} link(s) gerado(s).` +
+      (removidas > 0 ? ` ${removidas} duplicado(s) removido(s).` : ''),
+      'ok'
+    );
+  }
+
+  async function copiarResultado() {
+    const texto = inputSaida.value;
+    if (!texto) {
+      setStatus('Nada para copiar. Gere os links primeiro.', 'err');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(texto);
+      setStatus('📋 Código copiado para a área de transferência!', 'ok');
+    } catch (err) {
+      // Fallback para navegadores antigos / contexto não seguro
+      inputSaida.select();
+      document.execCommand('copy');
+      setStatus('📋 Copiado (fallback).', 'ok');
+    }
+  }
+
+  function limpar() {
+    inputEntrada.value = '';
+    inputSaida.value = '';
+    statusEl.textContent = '';
+    statusEl.className = 'status';
+  }
+
+  function setStatus(msg, tipo) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status' + (tipo ? ' ' + tipo : '');
+  }
+</script>
+</body>
+</html>
