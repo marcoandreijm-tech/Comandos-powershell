@@ -1,4 +1,33 @@
-Get-Content "arquivo.txt" | Sort-Object | Set-Content "gerado.txt"
-Get-Content "gerado.txt" | ForEach-Object {
-    "http://c.srvxui.top/get.php?username=" + ($_ -replace ":", "&password=") + "&type=m3u_plus"
-} | Set-Content "linkgerado.txt" -Encoding UTF8
+Add-Type -AssemblyName System.Windows.Forms
+
+# Abre a janela para escolher o arquivo
+$OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+$OpenFileDialog.Filter = "Arquivos de texto (*.txt)|*.txt|Todos os arquivos (*.*)|*.*"
+$OpenFileDialog.Title = "Selecione o arquivo TXT"
+
+if ($OpenFileDialog.ShowDialog() -eq "OK") {
+    $arquivoEntrada = $OpenFileDialog.FileName
+    $pastaSaida = Split-Path $arquivoEntrada -Parent
+    $nomeBase = [System.IO.Path]::GetFileNameWithoutExtension($arquivoEntrada)
+    
+    $arquivoGerado = Join-Path $pastaSaida "$nomeBase-gerado.txt"
+    $arquivoLinks  = Join-Path $pastaSaida "$nomeBase-links.txt"
+    
+    Write-Host "Arquivo selecionado: $arquivoEntrada" -ForegroundColor Cyan
+    
+    # Ordena e remove duplicados
+    $linhasUnicas = Get-Content $arquivoEntrada | Sort-Object -Unique
+    $linhasUnicas | Set-Content $arquivoGerado -Encoding UTF8
+    
+    Write-Host "Linhas originais: $((Get-Content $arquivoEntrada).Count)" -ForegroundColor Gray
+    Write-Host "Linhas únicas:    $($linhasUnicas.Count)" -ForegroundColor Gray
+    
+    # Gera os links
+    $linhasUnicas | ForEach-Object {
+        "http://c.srvxui.top/get.php?username=" + ($_ -replace ":", "&password=") + "&type=m3u_plus"
+    } | Set-Content $arquivoLinks -Encoding UTF8
+    
+    Write-Host "Arquivo gerado: $arquivoLinks" -ForegroundColor Green
+} else {
+    Write-Host "Nenhum arquivo selecionado." -ForegroundColor Yellow
+}
