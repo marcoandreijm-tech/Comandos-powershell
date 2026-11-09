@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversor de Link para M3U_PLUS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #eee;
+  }
+  .container {
+    background: #252538;
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 680px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    border: 1px solid #3a3a55;
+  }
+  h1 {
+    font-size: 1.6rem;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, #6ee7b7, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle {
+    color: #9ca3af;
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+  }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+    color: #cbd5e1;
+    font-weight: 600;
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid #3a3a55;
+    background: #1e1e2f;
+    color: #fff;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type="text"]:focus { border-color: #6ee7b7; }
+  .btn {
+    margin-top: 16px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #10b981, #3b82f6);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.2s;
+  }
+  .btn:hover { transform: translateY(-1px); opacity: 0.95; }
+  .btn:active { transform: translateY(0); }
+  .result-box {
+    margin-top: 24px;
+    padding: 16px;
+    background: #1e1e2f;
+    border-radius: 10px;
+    border: 1px solid #3a3a55;
+    display: none;
+  }
+  .result-box.show { display: block; }
+  .result-label {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .result-url {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: #6ee7b7;
+    word-break: break-all;
+    background: #252538;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px dashed #3a3a55;
+  }
+  .parts-breakdown {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 12px;
+    font-size: 0.8rem;
+  }
+  .parts-breakdown .key { color: #9ca3af; }
+  .parts-breakdown .val {
+    color: #fbbf24;
+    font-family: 'Courier New', monospace;
+    word-break: break-all;
+  }
+  .copy-btn {
+    margin-top: 12px;
+    padding: 10px 16px;
+    border: 1px solid #3b82f6;
+    background: transparent;
+    color: #3b82f6;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .copy-btn:hover { background: #3b82f6; color: #fff; }
+  .error {
+    color: #f87171;
+    font-size: 0.85rem;
+    margin-top: 12px;
+    display: none;
+  }
+  .error.show { display: block; }
+  .examples {
+    margin-top: 20px;
+    font-size: 0.75rem;
+    color: #6b7280;
+    line-height: 1.6;
+  }
+  .examples code {
+    color: #9ca3af;
+    background: #1e1e2f;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .examples strong { color: #9ca3af; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Conversor M3U_PLUS</h1>
+  <p class="subtitle">Converta links de vídeo para URL de playlist M3U_PLUS</p>
+
+  <label for="linkInput">Cole o link para converter</label>
+  <input type="text" id="linkInput" placeholder="slackewn.click/series/wp2pFbti4dbbhF/gHrpFgbsrb95gF/425762.mp4">
+
+  <button class="btn" onclick="convert()">Converter</button>
+  <div class="error" id="error"></div>
+
+  <div class="result-box" id="resultBox">
+    <div class="result-label">URL M3U_PLUS gerada:</div>
+    <div class="result-url" id="resultUrl"></div>
+
+    <div class="parts-breakdown">
+      <div class="key">Domínio:</div>   <div class="val" id="pDomain"></div>
+      <div class="key">Username:</div>  <div class="val" id="pUser"></div>
+      <div class="key">Password:</div>  <div class="val" id="pPass"></div>
+      <div class="key">Arquivo:</div>   <div class="val" id="pFile"></div>
+    </div>
+
+    <button class="copy-btn" onclick="copyResult()">Copiar URL</button>
+  </div>
+
+  <div class="examples">
+    <strong>Como funciona:</strong><br>
+    Os segmentos <code>movie</code>, <code>series</code> e <code>live</code> são ignorados.<br>
+    A conversão usa as <strong>3 últimas partes</strong> do caminho:<br>
+    <code>[antepenúltima=username] / [penúltima=password] / [última=arquivo]</code>
+  </div>
+</div>
+
+<script>
+const IGNORED = new Set(['movie', 'series', 'live']);
+
+function convert() {
+  const input = document.getElementById('linkInput').value.trim();
+  const errorEl = document.getElementById('error');
+  const resultBox = document.getElementById('resultBox');
+
+  errorEl.classList.remove('show');
+  resultBox.classList.remove('show');
+
+  if (!input) {
+    showError('Por favor, insira um link.');
+    return;
+  }
+
+  let url = input;
+  if (!/^https?:\/\//i.test(url)) url = 'http://' + url;
+
+  try {
+    const parsed = new URL(url);
+    const allParts = parsed.pathname.split('/').filter(Boolean);
+
+    // Remove segmentos que devem ser ignorados (case-insensitive)
+    const filtered = allParts.filter(p => !IGNORED.has(p.toLowerCase()));
+
+    if (filtered.length < 3) {
+      showError('Não foi possível extrair username, password e arquivo. Verifique o link.');
+      return;
+    }
+
+    // Pegamos os 3 últimos segmentos válidos
+    const file     = filtered[filtered.length - 1];
+    const password = filtered[filtered.length - 2];
+    const username = filtered[filtered.length - 3];
+
+    if (!/\.mp4$/i.test(file)) {
+      showError('O link deve terminar em .mp4 (arquivo não reconhecido).');
+      return;
+    }
+
+    const base = parsed.origin;
+    const finalUrl = `${base}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus`;
+
+    document.getElementById('resultUrl').textContent = finalUrl;
+    document.getElementById('pDomain').textContent  = parsed.host;
+    document.getElementById('pUser').textContent    = username;
+    document.getElementById('pPass').textContent    = password;
+    document.getElementById('pFile').textContent    = file;
+
+    resultBox.classList.add('show');
+
+  } catch (e) {
+    showError('Formato inválido. O link deve seguir o padrão: dominio.com/.../username/password/arquivo.mp4');
+  }
+}
+
+function showError(msg) {
+  const errorEl = document.getElementById('error');
+  errorEl.textContent = msg;
+  errorEl.classList.add('show');
+}
+
+function copyResult() {
+  const text = document.getElementById('resultUrl').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    const original = btn.textContent;
+    btn.textContent = '✓ Copiado!';
+    setTimeout(() => btn.textContent = original, 1500);
+  });
+}
+
+document.getElementById('linkInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') convert();
+});
+</script>
+</body>
+</html>
