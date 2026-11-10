@@ -437,10 +437,15 @@ Limpar-Pasta "$env:TEMP"
 Limpar-Pasta "$env:TMP"
 Limpar-Pasta "$env:LOCALAPPDATA\Temp"
 Limpar-Pasta "$env:WINDIR\Temp"
+Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
 
 # Prefetch e cache do sistema
 Limpar-Pasta "$env:WINDIR\Prefetch"
 Limpar-Pasta "$env:LOCALAPPDATA\Microsoft\Windows\Explorer"
+Stop-Service SysMain -Force; Set-Service SysMain -StartupType Disabled
+Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+Stop-Service SysMain -Force; Set-Service SysMain -StartupType Disabled
+
 
 # Windows Update cache
 Limpar-Pasta "$env:WINDIR\SoftwareDistribution\Download"
